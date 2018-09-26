@@ -1,0 +1,26 @@
+{
+    "name": "awaydian/json-sql",
+    "type" : "library",
+    "description": "query .json files with sql (PHP)",
+    "keywords" : [
+        "json",
+        "sql"
+    ],
+    "homepage" : "https://github.com/awaydian/json-sql",
+    "license": "MIT License",
+    "authors": [
+        {
+            "name": "Away Dian",
+            "email": "awaydian@outlook.com",
+            "role" : "Owner"
+        }
+    ],
+    "autoload" : {
+        "psr-0" : {
+            "JSONSQL\\" : "src/"
+        }
+    },
+    "require": {
+        "greenlion/php-sql-parser": "^4.1"
+    }
+}
