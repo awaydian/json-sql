@@ -7,7 +7,7 @@
         "sql"
     ],
     "homepage" : "https://github.com/awaydian/json-sql",
-    "license": "MIT License",
+    "license" : "BSD-3-Clause",
     "authors": [
         {
             "name": "Away Dian",
