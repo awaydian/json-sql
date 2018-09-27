@@ -10,13 +10,26 @@ class DB
 {
     private $cfgPath;
     private $parser;
+    private $storage;
 
-    function __construct($cfgPath){
-        if (substr($cfgPath, -1) != '/') {
-            $cfgPath .= '/';
-        }
+    function __construct($cfgPath, $lockPath = null){
+        $cfgPath = $this->pathProcess($cfgPath);
         $this->cfgPath = $cfgPath;
         $this->parser = new Parser();
+
+        if ($lockPath == null) {
+            $lockPath = $cfgPath . 'priv/lock/';
+        }
+        $lockPath = $this->pathProcess($lockPath);
+
+        $this->storage = new Storage($lockPath);
+    }
+
+    private function pathProcess($path) {
+        if (substr($path, -1) != '/') {
+            $path .= '/';
+        }
+        return $path;
     }
 
     private function parseSql($sql){
