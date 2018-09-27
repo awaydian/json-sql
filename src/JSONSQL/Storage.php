@@ -13,7 +13,7 @@ class Storage {
     {
         $interval = $interval * 1000000;
         try {
-            $lockFilePath = get_lock_file_path($filePath);
+            $lockFilePath = $this->getLockFilePath($filePath);
             /** @noinspection PhpUndefinedMethodInspection */
             // \Illuminate\Support\Facades\Log::info("Try lock file {$filePath}, retry 0.");
             if (file_exists($lockFilePath) && !is_dir($lockFilePath)) {
@@ -81,7 +81,7 @@ class Storage {
     {
         $interval = $interval * 1000000;
         try {
-            $lockFilePath = get_lock_file_path($filePath);
+            $lockFilePath = $this->getLockFilePath($filePath);
             $success = rmdir($lockFilePath) || !is_file_locked($filePath);
             /** @noinspection PhpUndefinedMethodInspection */
             // \Illuminate\Support\Facades\Log::info("Try unlock file {$filePath}, retry 0.");
@@ -107,13 +107,18 @@ class Storage {
         }
     }
 
-    function get_lock_file_path($filePath)
+    // private function getLockFilePath($filePath)
+    function getLockFilePath($filePath)
     {
-        $clusterCfgPath = env('CLUSTER_CONFIG_PATH', base_path('cfg'));
-        if (starts_with($filePath, $clusterCfgPath)) {
-            return env('CFG_LOCK_PATH', base_path(DFT_CFG_LOCK_PATH)) . '/' . md5($filePath) . '(' . str_replace('/', '>', $filePath) . ')' . '.lock';
-        } else {
-            return env('CFG_LOCK_PATH', base_path(DFT_CFG_LOCK_PATH)) . '/' . md5($filePath) . '(' . str_replace('/', '>', $filePath) . ')@' . \App\Providers\AppServiceProvider::getClusterService()->getLocalHostUid() . '.lock';
-        }
+        $clusterCfgPath = $this->lockPath;
+        // if (starts_with($filePath, $clusterCfgPath)) {
+        //     return env('CFG_LOCK_PATH', base_path(DFT_CFG_LOCK_PATH)) . '/' . md5($filePath) . '(' . str_replace('/', '>', $filePath) . ')' . '.lock';
+        // } else {
+        //     return env('CFG_LOCK_PATH', base_path(DFT_CFG_LOCK_PATH)) . '/' . md5($filePath) . '(' . str_replace('/', '>', $filePath) . ')@' . \App\Providers\AppServiceProvider::getClusterService()->getLocalHostUid() . '.lock';
+        // }
+
+        return $this->lockPath . md5($filePath) . md5($filePath) . '(' . str_replace('/', '>', $filePath) . ')' . '.lock';
+
+        return $this->lockPath . md5($filePath) . md5($filePath) . '(' . str_replace('/', '>', $filePath) . ')@' . '__host_uuid__' . '.lock';
     }
 }

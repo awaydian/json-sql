@@ -213,7 +213,9 @@ class DB
         $tablesData = [];
         foreach ($tables as $table => $alias) {
             // if ($from['expr_type'] == 'table') {
-
+            // check lock
+            // if locked wait to unlock
+            // fail to unlock throw expception
             $fileData = $this->getTableData($table);
             $tablesData[$table] = & $fileData;
 
@@ -391,12 +393,19 @@ class DB
             }
         }
 
-        // lock 
-        // write
+
         foreach ($tables as $table => $alias) {
+            // lock concerned tables
+            if ($this->storage->lockFile($table)) {
+                // $this->setTableData($table, $tablesData[$table]);
+                $this->storage->unlockFile($table);
+            } else {
+                throw new \Exception("Error cannot get file lock", 1);
+                
+            }
             // echo $table,"\n";
             // print_r($tablesData[$table]);
-            $this->setTableData($table, $tablesData[$table]);
+            // $this->setTableData($table, $tablesData[$table]);
         }
 
     }
