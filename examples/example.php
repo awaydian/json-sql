@@ -24,12 +24,12 @@ $db = new DB(dirname(__FILE__) . '/json_files');
 // $sql = "delete from `nodes` where device_uid in ('7d56269a-48f0-4908-a8a9-1156a8ec4930', '57414b7d-e354-407b-828c-ff38f318eea0')";
 
 $sql = "update `nodes` set `pos_x` = 111, `pos_y` = 222 where `device_uid` = '7d56269a-48f0-4908-a8a9-1156a8ec4930' ";
-// print_r($db->query($sql));
+print_r($db->query($sql));
 
 
 
 
-$s = new Storage(dirname(__FILE__) . '/json_files/priv/lock/');
-echo $s->getLockFilePath('nodes');
+// $s = new Storage(dirname(__FILE__) . '/json_files/priv/lock/');
+// echo $s->getLockFilePath('nodes');
 // $s->lockFile('nodes');
 // $s->unlockFile('nodes');

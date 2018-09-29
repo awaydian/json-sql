@@ -185,12 +185,78 @@ class DB
             }
         }
 
-        // lock 
-        // write
         foreach ($tables as $table => $alias) {
-            $this->setTableData($table, $tablesData[$table]);
+            if ($this->storage->lockFile($table)) {
+                $this->setTableData($table, $tablesData[$table]);
+                $this->storage->unlockFile($table);
+            } else {
+                throw new \Exception("Error cannot get file lock", 1);
+            }
+        }
+    }
+
+    private function execUpdate($parsed) {
+        $tables = $this->getParsedTable($parsed['UPDATE']);
+        $tablesData = $this->getParsedTableData($tables);
+        $conditions = $this->getParsedCondition($parsed['WHERE']);
+        $targetTablesData = $this->getConditionFilterResult($tablesData, $conditions);
+
+        $sets = [];
+        foreach ($parsed['SET'] as $exp) {
+            $sets = array_merge($sets, $this->getParsedCondition($exp['sub_tree']));
         }
 
+        foreach ($sets as $condition) {
+            $keys = $condition['key'];
+            $tab = null;
+            if (in_array($keys[0], array_keys($tablesData))) {
+                $tab = $keys[0];
+                unset($keys[0]);
+                $keys = array_values($keys);
+            }
+            foreach ($targetTablesData as $table => $data) {
+                if ($tab != null && $table != $tab) {
+                    continue;
+                }
+                foreach ($data as $_key => $record) {
+                    $record['_key'] = $_key;
+
+                    $stack = [];
+                    $stack[] = $table;
+                    $stack[] = & $tablesData[$table];
+                    $stack[] = '_key';
+                    $stack[] = & $tablesData[$table][$_key];
+                    
+                    $target = & $tablesData[$table][$_key];
+                    foreach ($keys as $key) {
+                        $target = & $target[$key];
+                        $stack[] = $key;
+                        $stack[] = $target;
+                    }
+                    switch (strtoupper($condition['operator'])) {
+                        case '=':
+                            $target = $condition['value'];
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+        }
+
+
+        foreach ($tables as $table => $alias) {
+            // lock concerned tables
+            if ($this->storage->lockFile($table)) {
+                $this->setTableData($table, $tablesData[$table]);
+                $this->storage->unlockFile($table);
+            } else {
+                throw new \Exception("Error cannot get file lock", 1);
+            }
+            // echo $table,"\n";
+            // print_r($tablesData[$table]);
+            // $this->setTableData($table, $tablesData[$table]);
+        }
     }
 
     private function getParsedTable($parsedTable) {
@@ -342,72 +408,6 @@ class DB
             }
         }
         return $tablesData;
-    }
-
-    private function execUpdate($parsed) {
-        $tables = $this->getParsedTable($parsed['UPDATE']);
-        $tablesData = $this->getParsedTableData($tables);
-        $conditions = $this->getParsedCondition($parsed['WHERE']);
-        $targetTablesData = $this->getConditionFilterResult($tablesData, $conditions);
-
-        $sets = [];
-        foreach ($parsed['SET'] as $exp) {
-            $sets = array_merge($sets, $this->getParsedCondition($exp['sub_tree']));
-        }
-
-        foreach ($sets as $condition) {
-            $keys = $condition['key'];
-            $tab = null;
-            if (in_array($keys[0], array_keys($tablesData))) {
-                $tab = $keys[0];
-                unset($keys[0]);
-                $keys = array_values($keys);
-            }
-            foreach ($targetTablesData as $table => $data) {
-                if ($tab != null && $table != $tab) {
-                    continue;
-                }
-                foreach ($data as $_key => $record) {
-                    $record['_key'] = $_key;
-
-                    $stack = [];
-                    $stack[] = $table;
-                    $stack[] = & $tablesData[$table];
-                    $stack[] = '_key';
-                    $stack[] = & $tablesData[$table][$_key];
-                    
-                    $target = & $tablesData[$table][$_key];
-                    foreach ($keys as $key) {
-                        $target = & $target[$key];
-                        $stack[] = $key;
-                        $stack[] = $target;
-                    }
-                    switch (strtoupper($condition['operator'])) {
-                        case '=':
-                            $target = $condition['value'];
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            }
-        }
-
-
-        foreach ($tables as $table => $alias) {
-            // lock concerned tables
-            if ($this->storage->lockFile($table)) {
-                // $this->setTableData($table, $tablesData[$table]);
-                $this->storage->unlockFile($table);
-            } else {
-                throw new \Exception("Error cannot get file lock", 1);
-                
-            }
-            // echo $table,"\n";
-            // print_r($tablesData[$table]);
-            // $this->setTableData($table, $tablesData[$table]);
-        }
-
     }
 
     private function getFilePathByTable($table){
