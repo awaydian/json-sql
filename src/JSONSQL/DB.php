@@ -8,21 +8,16 @@ namespace JSONSQL;
 
 class DB
 {
-    private $cfgPath;
+    private $jsonDir;
     private $parser;
     private $storage;
 
-    function __construct($cfgPath, $lockPath = null){
-        $cfgPath = $this->pathProcess($cfgPath);
-        $this->cfgPath = $cfgPath;
+    function __construct($jsonDir, Storage $storage = NULL){
+        $this->jsonDir = $this->pathProcess($jsonDir);
         $this->parser = new Parser();
 
-        if ($lockPath == null) {
-            $lockPath = $cfgPath . 'priv/lock/';
-        }
-        $lockPath = $this->pathProcess($lockPath);
-
-        $this->storage = new Storage($lockPath);
+        $storage = $storage == null ? new Storage($this->jsonDir . 'lock/') : $storage;
+        $this->storage = $storage;
     }
 
     private function pathProcess($path) {
@@ -414,7 +409,7 @@ class DB
         if (substr($table, 0, 1) == '/') {
             $table = substr($table, 1);
         }
-        return $this->cfgPath . $table . '.json';
+        return $this->jsonDir . $table . '.json';
     }
 
     // validate cols

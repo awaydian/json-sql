@@ -29,7 +29,7 @@ print_r($db->query($sql));
 
 
 
-// $s = new Storage(dirname(__FILE__) . '/json_files/priv/lock/');
-// echo $s->getLockFilePath('nodes');
+$s = new Storage(dirname(__FILE__) . '/json_files/lock/');
+echo $s->getLockFilePath('nodes');
 // $s->lockFile('nodes');
 // $s->unlockFile('nodes');
