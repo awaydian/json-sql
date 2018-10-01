@@ -34,7 +34,7 @@ $db = new DB(dirname(__FILE__) . '/json_files');
 
 
 
-$sql = "insert into `nodes` (`_key`, `device_uid`,`pos_x`,`pos_y`) values('___key__','__device_uid',1,2)";
+$sql = "insert into `nodes` (`_key`, `device_uid`,`pos_x`,`pos_y`) values('___key__','__device_uid',1,2),('___key2__','__device_uid',1,2)";
 print_r($db->query($sql));
 
 

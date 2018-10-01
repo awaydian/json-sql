@@ -6,6 +6,7 @@
 
 namespace JSONSQL;
 
+define('PRIMARY_KEY', '_key');
 class DB
 {
     private $jsonDir;
@@ -34,7 +35,7 @@ class DB
     public function query($sql){
         $parsed = $this->parseSql($sql);
 
-        print_r($parsed);
+        // print_r($parsed);
 
         if (!empty($parsed['SELECT'])) {
             return $this->execSelect($parsed);
@@ -68,12 +69,12 @@ class DB
                 }
                 // find target then filter
                 foreach ($data as $_key => $record) {
-                    $record['_key'] = $_key;
+                    $record[PRIMARY_KEY] = $_key;
 
                     $stack = [];
                     $stack[] = $table;
                     $stack[] = & $tablesData[$table];
-                    $stack[] = '_key';
+                    $stack[] = PRIMARY_KEY;
                     $stack[] = & $tablesData[$table][$_key];
                     
                     $target = & $tablesData[$table][$_key];
@@ -119,7 +120,7 @@ class DB
 
                     if (!$status) {
                         $findKey = $stack[count($stack) - 4];
-                        if ($findKey == '_key') {
+                        if ($findKey == PRIMARY_KEY) {
                             $tmp = & $stack[count($stack) - 5];
                             unset($tmp[$_key]);
                         }
@@ -151,11 +152,11 @@ class DB
             if ($column  == '*') {
                 continue;
             }
-            if ($column  == '_key') {
+            if ($column  == PRIMARY_KEY) {
                 foreach ($tablesData as $table => $data) {
                     foreach ($data as $key => $record) {
-                        if (empty($record['_key'])) {
-                            $tablesData[$table][$key]['_key'] = $key;
+                        if (empty($record[PRIMARY_KEY])) {
+                            $tablesData[$table][$key][PRIMARY_KEY] = $key;
                         }
                     }
                 }
@@ -216,12 +217,12 @@ class DB
                     continue;
                 }
                 foreach ($data as $_key => $record) {
-                    $record['_key'] = $_key;
+                    $record[PRIMARY_KEY] = $_key;
 
                     $stack = [];
                     $stack[] = $table;
                     $stack[] = & $tablesData[$table];
-                    $stack[] = '_key';
+                    $stack[] = PRIMARY_KEY;
                     $stack[] = & $tablesData[$table][$_key];
                     
                     $target = & $tablesData[$table][$_key];
@@ -241,7 +242,6 @@ class DB
             }
         }
 
-
         foreach ($tables as $table => $alias) {
             // lock concerned tables
             if ($this->storage->lockFile($table)) {
@@ -250,77 +250,70 @@ class DB
             } else {
                 throw new \Exception("Error cannot get file lock", 1);
             }
-            // echo $table,"\n";
-            // print_r($tablesData[$table]);
-            // $this->setTableData($table, $tablesData[$table]);
         }
     }
 
     private function execInsert($parsed) {
-
-        return;
-        $tables = $this->getParsedTable($parsed['UPDATE']);
-        $tablesData = $this->getParsedTableData($tables);
-        $conditions = $this->getParsedCondition($parsed['WHERE']);
-        $targetTablesData = $this->getConditionFilterResult($tablesData, $conditions);
-
-        $sets = [];
-        foreach ($parsed['SET'] as $exp) {
-            $sets = array_merge($sets, $this->getParsedCondition($exp['sub_tree']));
+        $intoTable = null;
+        $columnList = [];
+        foreach ($parsed['INSERT'] as $val) {
+            switch ($val['expr_type']) {
+                case 'table':
+                    $intoTable = $val;
+                    break;
+                case 'column-list':
+                    foreach ($val['sub_tree'] as $sub) {
+                        $col = empty($sub['no_quotes']) ? $sub['base_expr'] : $sub['no_quotes']['parts'][0];
+                        $columnList[] = $col;
+                    }
+                    break;
+                default:
+                    # code...
+                    break;
+            }
         }
 
-        foreach ($sets as $condition) {
-            $keys = $condition['key'];
-            $tab = null;
-            if (in_array($keys[0], array_keys($tablesData))) {
-                $tab = $keys[0];
-                unset($keys[0]);
-                $keys = array_values($keys);
+        $values = [];
+        foreach ($parsed['VALUES'] as $vals) {
+            $valTmp = [];
+            foreach ($vals['data'] as $val) {
+                $valTmp[] = $this->parseStringColon($val['base_expr']);
             }
-            foreach ($targetTablesData as $table => $data) {
-                if ($tab != null && $table != $tab) {
+            $values[] = $valTmp;
+        }
+        $insertData = [];
+        foreach ($values as $value) {
+            $record = [];
+            $key = null;
+            foreach ($columnList as $index => $column) {
+                if ($column == PRIMARY_KEY) {
+                    $key = $value[$index];
                     continue;
                 }
-                foreach ($data as $_key => $record) {
-                    $record['_key'] = $_key;
+                $record[$column] = $value[$index];
+            }
+            if ($key != null) {
+                $insertData[$key] = $record;
+            } else {
+                $insertData[] = $record;
+            }
+        }
 
-                    $stack = [];
-                    $stack[] = $table;
-                    $stack[] = & $tablesData[$table];
-                    $stack[] = '_key';
-                    $stack[] = & $tablesData[$table][$_key];
-                    
-                    $target = & $tablesData[$table][$_key];
-                    foreach ($keys as $key) {
-                        $target = & $target[$key];
-                        $stack[] = $key;
-                        $stack[] = $target;
-                    }
-                    switch (strtoupper($condition['operator'])) {
-                        case '=':
-                            $target = $condition['value'];
-                            break;
-                        default:
-                            break;
-                    }
+        $tables = $this->getParsedTable([$intoTable]);
+        $tablesData = $this->getParsedTableData($tables);
+
+        // check duplicate primary key 
+        foreach ($tablesData as $table => $data) {
+            $keys = array_keys($data);
+            foreach ($insertData as $key => $value) {
+                if (in_array($key, $keys)) {
+                    throw new \Exception("Error duplicate PRIMARY_KEY", 1);
                 }
             }
+            $tablesData[$table] = array_merge($data, $insertData);
         }
 
-        return;
-
-        foreach ($tables as $table => $alias) {
-            // lock concerned tables
-            if ($this->storage->lockFile($table)) {
-                $this->setTableData($table, $tablesData[$table]);
-                $this->storage->unlockFile($table);
-            } else {
-                throw new \Exception("Error cannot get file lock", 1);
-            }
-            // echo $table,"\n";
-            // print_r($tablesData[$table]);
-            // $this->setTableData($table, $tablesData[$table]);
-        }
+        return $this->writeTablesData($tables, $tablesData);
     }
 
     private function getParsedTable($parsedTable) {
@@ -372,7 +365,8 @@ class DB
                     $conditions[$conditionIndex]['operator'] = $word['base_expr'];
                     break;
                 case 'const':
-                    $conditions[$conditionIndex]['value'] =  $this->parseStringColon($word['base_expr']);
+                    // $conditions[$conditionIndex]['value'] =  $this->parseStringColon($word['base_expr']);
+                    $conditions[$conditionIndex]['value'] =  $word['base_expr'];
                     break;
                 case 'in-list':
                     $value = $word['base_expr'];
@@ -382,7 +376,8 @@ class DB
                         $value = substr($value, 1, strlen($value) - 2);
                         $value = explode(',', $value);
                         foreach ($value as $key => $single) {
-                            $value[$key] = $this->parseStringColon(trim($single));
+                            // $value[$key] = $this->parseStringColon(trim($single));
+                            $value[$key] = trim($single);
                         }
                     }
                     $conditions[$conditionIndex]['value'] = $value;
@@ -410,16 +405,16 @@ class DB
                 }
                 // find target then filter
                 foreach ($data as $_key => $record) {
-                    $record['_key'] = $_key;
+                    $record[PRIMARY_KEY] = $_key;
 
                     $stack = [];
                     $stack[] = $table;
                     $stack[] = & $tablesData[$table];
-                    $stack[] = '_key';
+                    $stack[] = PRIMARY_KEY;
                     $stack[] = & $tablesData[$table][$_key];
                     
                     $target = & $tablesData[$table][$_key];
-                    $target['_key'] = $_key;
+                    $target[PRIMARY_KEY] = $_key;
 
                     foreach ($keys as $key) {
                         $target = & $target[$key];
@@ -427,27 +422,31 @@ class DB
                         $stack[] = $target;
                     }
 
+                    $value = $condition['value'];
+                    if (!is_array($condition['value'])) {
+                        $value = $this->parseStringColon($value);
+                    }
                     // filter
                     $status = true;
                     switch (strtoupper($condition['operator'])) {
                         case '=':
-                            $status = $target == $condition['value'];
+                            $status = $target == $value;
                             break;
                         case '!=':
                         case '<>':
-                            $status = $target != $condition['value'];
+                            $status = $target != $value;
                             break;
                         case '>':
-                            $status = $target > $condition['value'];
+                            $status = $target > $value;
                             break;
                         case '>=':
-                            $status = $target >= $condition['value'];
+                            $status = $target >= $value;
                             break;
                         case '<':
-                            $status = $target < $condition['value'];
+                            $status = $target < $value;
                             break;
                         case '<=':
-                            $status = $target <= $condition['value'];
+                            $status = $target <= $value;
                             break;
                         case 'BETWEEN':
                             $status = $target >= $condition['value'][0];
@@ -463,7 +462,7 @@ class DB
                     $status = $negative ? !$status : $status;
                     if (!$status) {
                         $findKey = $stack[count($stack) - 4];
-                        if ($findKey == '_key') {
+                        if ($findKey == PRIMARY_KEY) {
                             $tmp = & $stack[count($stack) - 5];
                             unset($tmp[$_key]);
                         }
@@ -489,6 +488,18 @@ class DB
 
     private function setTableData($table, &$data){
         return file_put_contents($this->getFilePathByTable($table), json_encode($data));
+    }
+
+    private function writeTablesData(&$tables, &$tablesData){
+        foreach ($tables as $table => $alias) {
+            if ($this->storage->lockFile($table)) {
+                $this->setTableData($table, $tablesData[$table]);
+                $this->storage->unlockFile($table);
+            } else {
+                throw new \Exception("Error cannot get file lock", 1);
+            }
+        }
+        return true;
     }
 
     private function getWhereResult(&$allData, $conditions)
