@@ -242,15 +242,7 @@ class DB
             }
         }
 
-        foreach ($tables as $table => $alias) {
-            // lock concerned tables
-            if ($this->storage->lockFile($table)) {
-                $this->setTableData($table, $tablesData[$table]);
-                $this->storage->unlockFile($table);
-            } else {
-                throw new \Exception("Error cannot get file lock", 1);
-            }
-        }
+        return $this->writeTablesData($tables, $tablesData);
     }
 
     private function execInsert($parsed) {
@@ -504,7 +496,6 @@ class DB
 
     private function getWhereResult(&$allData, $conditions)
     {
-        // print_r($conditions);
         foreach ($conditions as $condition) {
             if ($condition == '1') {
                 continue;

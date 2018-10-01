@@ -1,11 +1,13 @@
 <?php
-namespace JSONSQL;
+// namespace JSONSQL;
 require_once dirname(__FILE__) . '/../vendor/autoload.php';
 
+use JSONSQL\DB;
+use JSONSQL\Storage;
 $db = new DB(dirname(__FILE__) . '/json_files');
 
-// $sql = "select  *  from `nodes` as `n`";
-// print_r($db->query($sql));
+$sql = "select  *  from `nodes` as `n`";
+print_r($db->query($sql));
 
 // $sql = "select  * , _key as `id`  from `nodes` as `n` where `nodes`.`_key` = '24642684-3b34-45f5-8d8b-20e281ee7f32'";
 // print_r($db->query($sql));
@@ -34,8 +36,8 @@ $db = new DB(dirname(__FILE__) . '/json_files');
 
 
 
-$sql = "insert into `nodes` (`_key`, `device_uid`,`pos_x`,`pos_y`) values('___key__','__device_uid',1,2),('___key2__','__device_uid',1,2)";
-print_r($db->query($sql));
+// $sql = "insert into `nodes` (`_key`, `device_uid`,`pos_x`,`pos_y`) values('___key__','__device_uid',1,2),('___key2__','__device_uid',1,2)";
+// print_r($db->query($sql));
 
 
 
